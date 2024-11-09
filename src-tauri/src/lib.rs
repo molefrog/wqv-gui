@@ -1,7 +1,7 @@
 mod wqv;
-use tokio;
-
 use serde::Serialize;
+use tauri::ipc::Channel;
+use tokio;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -9,7 +9,17 @@ struct DownloadResponse {
     blob: Vec<u8>,
 }
 
-fn download_sync(_port_path: String) -> Result<DownloadResponse, String> {
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase", tag = "event", content = "data")]
+enum DownloadEvent {
+    PacketsReceived { packets: u32 },
+    Chunk { offset: usize, chunk: Vec<u8> },
+}
+
+fn download_sync(
+    port_path: String,
+    on_event: Channel<DownloadEvent>,
+) -> Result<DownloadResponse, String> {
     let contents = std::fs::read_to_string("./image.dat").map_err(|e| e.to_string())?;
 
     // Parse the hex string into bytes
@@ -21,13 +31,32 @@ fn download_sync(_port_path: String) -> Result<DownloadResponse, String> {
 
     let img = bytes.map_err(|e| e.to_string())?;
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    // Send image data in chunks
+    for (i, chunk) in img.chunks(128).enumerate() {
+        let offset = i * 128;
+        on_event
+            .send(DownloadEvent::Chunk {
+                offset,
+                chunk: chunk.to_vec(),
+            })
+            .unwrap();
+
+        on_event
+            .send(DownloadEvent::PacketsReceived { packets: i as u32 })
+            .unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
     Ok(DownloadResponse { blob: img })
 }
 
 #[tauri::command]
-async fn download_image_from_watch(port_path: String) -> Result<DownloadResponse, String> {
-    tokio::task::spawn_blocking(move || download_sync(port_path))
+async fn download_image_from_watch(
+    port_path: String,
+    on_event: Channel<DownloadEvent>,
+) -> Result<DownloadResponse, String> {
+    tokio::task::spawn_blocking(move || download_sync(port_path, on_event))
         .await
         .map_err(|e| e.to_string())?
 }
