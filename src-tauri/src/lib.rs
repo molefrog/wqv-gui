@@ -1,4 +1,5 @@
 mod wqv;
+use tokio;
 
 use serde::Serialize;
 
@@ -8,11 +9,8 @@ struct DownloadResponse {
     blob: Vec<u8>,
 }
 
-#[tauri::command]
-async fn download_image_from_watch(port_path: String) -> Result<DownloadResponse, String> {
-    let contents = tokio::fs::read_to_string("./image.dat")
-        .await
-        .map_err(|e| e.to_string())?;
+fn download_sync(_port_path: String) -> Result<DownloadResponse, String> {
+    let contents = std::fs::read_to_string("./image.dat").map_err(|e| e.to_string())?;
 
     // Parse the hex string into bytes
     let bytes: Result<Vec<u8>, _> = contents
@@ -23,7 +21,15 @@ async fn download_image_from_watch(port_path: String) -> Result<DownloadResponse
 
     let img = bytes.map_err(|e| e.to_string())?;
 
+    std::thread::sleep(std::time::Duration::from_secs(1));
     Ok(DownloadResponse { blob: img })
+}
+
+#[tauri::command]
+async fn download_image_from_watch(port_path: String) -> Result<DownloadResponse, String> {
+    tokio::task::spawn_blocking(move || download_sync(port_path))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
