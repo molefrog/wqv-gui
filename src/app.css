@@ -1,0 +1,12 @@
+@import "98.css";
+
+:root {
+  background-color: #c0c0c0;
+}
+
+html {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
