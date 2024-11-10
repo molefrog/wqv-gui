@@ -26,4 +26,5 @@ tokio = "1.41.0"
 chrono = "0.4.38"
 serialport = "4.6.0"
 tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
 

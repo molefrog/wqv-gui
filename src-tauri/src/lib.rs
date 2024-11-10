@@ -7,6 +7,9 @@ use tauri::ipc::Channel;
 use tokio;
 use wqv::Addr;
 
+// Global flag for mock mode
+const MOCK_MODE: bool = false;
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DownloadResponse {
@@ -165,11 +168,10 @@ fn download_sync_mock(
 #[tauri::command]
 async fn download_image_from_watch(
     port_path: String,
-    use_mock: bool,
     on_event: Channel<DownloadEvent>,
 ) -> Result<DownloadResponse, String> {
     tokio::task::spawn_blocking(move || {
-        if use_mock {
+        if MOCK_MODE {
             download_sync_mock(port_path, on_event)
         } else {
             download_sync(port_path, on_event)
@@ -181,12 +183,17 @@ async fn download_image_from_watch(
 
 #[tauri::command]
 async fn list_serial_ports() -> Result<Vec<String>, String> {
-    wqv::list_serial_usb_ports()
+    if MOCK_MODE {
+        Ok(vec!["/dev/mock.usbserial-0".to_string()])
+    } else {
+        wqv::list_serial_usb_ports()
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![

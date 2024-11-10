@@ -55,7 +55,6 @@ export class WatchDevice {
     try {
       const { blob } = await invoke<{ blob: Uint8Array }>("download_image_from_watch", {
         portPath: this.port,
-        useMock: false,
         onEvent: channel,
       });
 

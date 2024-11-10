@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { WatchDevice } from "./device.svelte";
+  import { save } from "@tauri-apps/plugin-dialog";
+  import { writeFile } from "@tauri-apps/plugin-fs";
 
   const FN_SZ = 24,
     DATE_SZ = 5;
@@ -86,6 +88,35 @@
 
     ctx.putImageData(imageData, 0, 0);
   });
+
+  /**
+   * Exports the canvas to a file
+   */
+  async function handleSave() {
+    if (!canvas) return;
+
+    const blob = await new Promise<Blob>((resolve) => {
+      canvas?.toBlob((blob) => resolve(blob!), "image/png");
+    });
+
+    const defaultPath =
+      `${filename || "wqv"}-${formattedDate || ""}`.replace(/[^\w\d]/g, "-") + ".png";
+
+    const path = await save({
+      defaultPath,
+      filters: [
+        {
+          name: "Image",
+          extensions: ["png"],
+        },
+      ],
+    });
+
+    if (path) {
+      const arrayBuffer = await blob.arrayBuffer();
+      await writeFile(path, new Uint8Array(arrayBuffer));
+    }
+  }
 </script>
 
 {#if device.packetsReceived === 0}
@@ -106,7 +137,7 @@
 {/if}
 <hr />
 
-<button disabled={isActionDisabled}>Save</button>
+<button disabled={isActionDisabled} onclick={handleSave}>Save</button>
 <button disabled={isActionDisabled} onclick={onCancel}>Cancel</button>
 
 <style>
