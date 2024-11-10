@@ -25,7 +25,13 @@
   async function download() {
     if (!selectedPort) return;
     device = new WatchDevice(selectedPort);
-    await device.download();
+
+    try {
+      await device.download();
+    } catch (e) {
+      device = undefined;
+      alert(`Error: ${e}`);
+    }
   }
 </script>
 
@@ -59,7 +65,7 @@
           <button onclick={download}>Download image</button>
         {/if}
       {:else}
-        <Photo {device} />
+        <Photo {device} onCancel={() => (device = undefined)} />
       {/if}
     </div>
 
@@ -80,7 +86,7 @@
         {#if device && device.status === "downloading"}
           {device.packetsReceived} PKT
           {#if device.imgBytesReceived}
-            - {device.imgBytesReceived}B / 7228B
+            - {device.imgBytesReceived}B / 7229B
           {/if}
         {/if}
       </p>

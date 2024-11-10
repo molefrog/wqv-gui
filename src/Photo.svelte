@@ -7,8 +7,10 @@
 
   let {
     device,
+    onCancel,
   }: {
     device: WatchDevice;
+    onCancel: () => void;
   } = $props();
 
   let filename = $derived.by(() => {
@@ -32,22 +34,26 @@
     }
   });
 
+  let formattedDate = $derived.by(() => {
+    return date?.toLocaleString();
+  });
+
+  let isActionDisabled = $derived(device.status !== "ready");
+
   /**
    * rendering on a canvas
    */
-  let canvas: HTMLCanvasElement;
-  let ctx: CanvasRenderingContext2D;
-
-  onMount(() => {
-    ctx = canvas.getContext("2d")!;
-    canvas.width = 120;
-    canvas.height = 120;
-  });
+  let canvas = $state<HTMLCanvasElement | null>(null);
 
   $effect(() => {
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d")!;
+    canvas.width = 120;
+    canvas.height = 120;
+
     // Re-render when bytes received changes
     const buffer = device.imgData.slice(FN_SZ + DATE_SZ, device.imgBytesReceived);
-    if (!ctx) return;
 
     const imageData = ctx.createImageData(120, 120);
     const data = imageData.data;
@@ -82,8 +88,41 @@
   });
 </script>
 
-<div>
-  Filename: {filename}
-  {date}
-</div>
-<canvas bind:this={canvas} style="image-rendering: pixelated;"></canvas>
+{#if device.packetsReceived === 0}
+  <i>Please please choose "IR Com" and then "Others" to put your watch in upload mode...</i>
+{:else}
+  <div class="fields">
+    <div class="field-row-stacked" style="width: 120px">
+      <label for="fname">Filename</label>
+      <input class="input-field" id="fname" type="text" value={filename || "(unknown)"} disabled />
+    </div>
+    <div class="field-row-stacked" style="width: 120px">
+      <label for="date">Date</label>
+      <input class="input-field" id="date" type="text" value={formattedDate} disabled />
+    </div>
+  </div>
+
+  <canvas bind:this={canvas} style="image-rendering: pixelated;"></canvas>
+{/if}
+<hr />
+
+<button disabled={isActionDisabled}>Save</button>
+<button disabled={isActionDisabled} onclick={onCancel}>Cancel</button>
+
+<style>
+  .fields {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+
+    & > .field-row-stacked {
+      margin-top: 0px;
+    }
+  }
+
+  input.input-field:disabled {
+    background: white;
+    color: #000;
+  }
+</style>

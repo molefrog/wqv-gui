@@ -2,10 +2,6 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serialport;
 use std::vec;
 
-// TODO:
-// save image as hex
-// simple CLI to print help and select an adapter
-
 /**
  * Reverse engineered protocol for the Casio WQV-1 watch.
  * https://www.mgroeber.de/misc/wqvprot.htm
