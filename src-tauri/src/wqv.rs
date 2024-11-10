@@ -71,7 +71,10 @@ impl ProtocolState {
         }
     }
 
-    pub fn read_data_transmission(&mut self) -> Result<Vec<u8>, &'static str> {
+    pub fn read_data_transmission<F>(&mut self, mut on_chunk: F) -> Result<Vec<u8>, &'static str>
+    where
+        F: FnMut(&[u8]),
+    {
         let mut all_data = Vec::new();
 
         // ...here, <get> and <ret> are cycled through a list of values to implement
@@ -90,6 +93,9 @@ impl ProtocolState {
             if data.len() == 0 || data[0] != 0x05 {
                 return Err("Invalid data chunk format, expected 0x05 as first byte");
             }
+
+            // Call the callback with the new chunk
+            on_chunk(&data[1..]);
 
             // Add frame data to buffer
             all_data.extend_from_slice(&data[1..]);

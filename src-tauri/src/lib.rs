@@ -13,6 +13,9 @@ struct DownloadResponse {
     blob: Vec<u8>,
 }
 
+/**
+ * An event channel to get updates on the download progress (packets, chunks of data)
+ */
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase", tag = "event", content = "data")]
 enum DownloadEvent {
@@ -53,7 +56,7 @@ fn download_sync(
     pckt_rcv += 1;
     on_event
         .send(DownloadEvent::PacketsReceived { packets: pckt_rcv })
-        .unwrap();
+        .ok();
 
     // Second: watch mirrors our time and sends the address, we ack
     proto.read_cmd_log(0x93).unwrap();
@@ -64,7 +67,7 @@ fn download_sync(
     pckt_rcv += 1;
     on_event
         .send(DownloadEvent::PacketsReceived { packets: pckt_rcv })
-        .unwrap();
+        .ok();
 
     // Third: watch sends one command, we ack, handshake is done!
     proto.read_cmd_log(0x11).unwrap();
@@ -73,7 +76,7 @@ fn download_sync(
     pckt_rcv += 1;
     on_event
         .send(DownloadEvent::PacketsReceived { packets: pckt_rcv })
-        .unwrap();
+        .ok();
 
     // Fourth: watch wants to send an image with some seq 04h FAh 1Ch 3Dh, we ack
     proto.read_cmd_log(0x10).unwrap();
@@ -82,7 +85,7 @@ fn download_sync(
     pckt_rcv += 1;
     on_event
         .send(DownloadEvent::PacketsReceived { packets: pckt_rcv })
-        .unwrap();
+        .ok();
 
     // Fifth: watch sends 11h, we ack with 20h and some unknown number
     proto.read_cmd_log(0x11).unwrap();
@@ -91,11 +94,22 @@ fn download_sync(
     pckt_rcv += 1;
     on_event
         .send(DownloadEvent::PacketsReceived { packets: pckt_rcv })
-        .unwrap();
+        .ok();
 
+    let mut offset = 0;
     // Sixth: watch sends the image data, we read it
-    let data = proto.read_data_transmission().unwrap();
-    println!("[X] Data transmission complete, got {} bytes", data.len());
+    let data = proto
+        .read_data_transmission(|chunk| {
+            on_event
+                .send(DownloadEvent::Chunk {
+                    offset: offset,
+                    chunk: chunk.to_vec(),
+                })
+                .ok();
+            offset += chunk.len();
+        })
+        .unwrap();
+    println!("[X] Data transmission complete, got {} bytes", offset);
 
     // end!
     proto.send_frame(Addr::Auto, 0x42, &[0x06]).unwrap();
@@ -105,11 +119,14 @@ fn download_sync(
     pckt_rcv += 1;
     on_event
         .send(DownloadEvent::PacketsReceived { packets: pckt_rcv })
-        .unwrap();
+        .ok();
 
     Ok(DownloadResponse { blob: data })
 }
 
+/**
+ * Mock download, reads from a file instead of the watch
+ */
 fn download_sync_mock(
     _port_path: String,
     on_event: Channel<DownloadEvent>,
