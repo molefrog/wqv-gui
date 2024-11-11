@@ -4,9 +4,22 @@
   background-color: #c0c0c0;
 }
 
-html {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Disable elastic scrolling/bounce effect on macOS */
+html,
+body {
+  overscroll-behavior: none;
 }
