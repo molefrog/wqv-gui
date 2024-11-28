@@ -26,6 +26,9 @@
   "bundle": {
     "active": true,
     "targets": ["dmg"],
+    "macOS": {
+      "signingIdentity": "B39708B5F68F7CF860C48A46D3DB90AB2C826574"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
